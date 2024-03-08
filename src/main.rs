@@ -223,9 +223,9 @@ struct Transaction {
 //transaction, but registers are basically fixed-size packets. 
 //TODO change ids so that they have types wrapped around them
 #[derive(Serialize, Deserialize)]
-struct OpenICD {
+struct OpenPID {
     /// Version of OpenICD to use
-    openicd_version: Option<String>,
+    openpid_version: Option<String>,
 
     /// This document's version
     doc_version: Option<String>,
@@ -287,8 +287,8 @@ fn stub() -> Result<(), Box<dyn Error>> {
 
     let tx_packets = BTreeMap::<String, Packet>::new();
     let rx_packets = BTreeMap::<String, Packet>::new();
-    println!("{}",toml::to_string_pretty(&OpenICD {
-        openicd_version: None,
+    println!("{}",toml::to_string_pretty(&OpenPID {
+        openpid_version: None,
         doc_version: None,
         packet_formats: AllPacketFormats { 
             send: PacketFormat::new(),
@@ -302,6 +302,6 @@ fn stub() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    std::fs::read_to_string("./openicd.toml")?;
+    std::fs::read_to_string("./openpid.toml")?;
     Ok(())
 }
