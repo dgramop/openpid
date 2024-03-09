@@ -1,0 +1,3 @@
+- package manager for downloading + codegening
+- central repo for releasing openpid sensors
+- platforms support/plugin interface

@@ -6,11 +6,18 @@ Our goal is to standardize how we document the communication interfaces of embed
 
 ## Examples
 
+## Known Users
+
+## License: GPL
+
+
 ## Credits:
 OpenAPI is used as a source of inspiration.
 Alyron's async-stripe uses Stripe's openAPI specification and emits Rust, creating an ergonomic and nearly feature-complete SDK with
 
 The same OpenAPI spec is used to generate documentation. Anyone can consume an OpenAPI spec and use it to generate client code in any language. 
+
+PlatformIO has different scope, and is focused on C/C++ embedded devices. It doesn't enforce any particular compatbility for sensor libraries though, so finding sensor libararies compatible with your platform/RTOS can be difficult
 
 ## Sales Pitch & Pipe Dream
 Clean, generated-code can take advantage of a programming lanugage's recent features (like async), be idiomatic to at least some baseline, and guarantee the software developer some level of predictability.

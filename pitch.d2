@@ -1,0 +1,27 @@
+direction: right
+sensors {
+    peripheral 1
+    peripheral 2
+    peripheral 3
+    peripheral 4
+}
+
+sensors.peripheral 1 -> openpid\.toml: describes
+sensors.peripheral 2 -> openpid\.toml: describes
+sensors.peripheral 3 -> openpid\.toml: descrbies
+sensors.peripheral 4 -> openpid\.toml: describes
+
+openpid\.toml
+
+platforms {
+    platforms 1
+    platforms 2
+    platforms 3
+    platforms 4
+}
+
+openpid\.toml -> platforms.platforms 1: codegen
+openpid\.toml -> platforms.platforms 2: codegen
+openpid\.toml -> platforms.platforms 3: codegen
+openpid\.toml -> platforms.platforms 4: codegen
+documentation <- openpid\.toml: docgen
