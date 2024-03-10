@@ -329,7 +329,7 @@ impl OpenPID {
 
         Ok(formatdoc!("
         \n\n
-        // {description}
+        /// {description}
         void TX{name}({args}) {{
         {writes}
         }}"))
@@ -354,7 +354,7 @@ impl OpenPID {
         Ok(formatdoc!("
         \n\n{return_struct}
 
-        // {description}
+        /// {description}
         {return_struct_name} RX{name}(struct Device* device) {{
             
         }}"))
