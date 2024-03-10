@@ -1,0 +1,48 @@
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 0
+  }
+}
+
+
+Packet Format {
+    style.font-size: 50
+    grid-rows: 1
+    grid-gap: 0
+    0: 8 bits
+0: {
+  explanation: |md Size |
+  explanation.style.font-size: 55
+  width:600
+
+  style.font-size: 40
+}
+1: 8 bits
+1: {
+  explanation: |md FrameID |
+  explanation.style.font-size: 55
+  width:600
+
+  style.font-size: 40
+}
+2: Variable
+2: {
+  explanation: |md Payload |
+  explanation.style.font-size: 55
+  width:1000
+
+  style.font-size: 40
+}
+3: 16 bits
+3: {
+  explanation: |md Crc |
+  explanation.style.font-size: 55
+  width:1200
+
+  style.font-size: 40
+}
+
+}
+

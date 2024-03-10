@@ -3,6 +3,7 @@ extern crate derive_more;
 extern crate rand;
 
 pub mod config;
+pub mod docgen;
 
 pub mod prelude {
     pub use crate::config::*;
