@@ -32,17 +32,17 @@ description = "Response to GetModInfo"
 FrameID = 0x02
 segments = [
 #    { name = "type", bits = 32, type = { type = "Integer", endianness = "BigEndian" } },
-    { name = "type", bits = 32, type = "StringUTF8" },
-    { name = "revision", bits = 32, type = "StringUTF8" }
+    { name = "type", bits = 32, type = { type = "StringUTF8" } },
+    { name = "revision", bits = 32, type = { type = "StringUTF8" } }
 ]
 
 [payloads.tx.SetConfig]
 description = "Sets Internal Configurations in the TargetPoint3"
 segments = [
-    { name = "configid", bits = 8, type = {type = "Integer", signing = "Unsigned", endianness = "BigEndian"}},
+    { name = "configid", bits = 8, type = { type = "Integer", signing = "Unsigned", endianness = "BigEndian" }},
     
     # When we add enum_structs, this will be a lot nicer to write out
-    { name = "value", type = "Raw" }
+    { name = "value", type = { type = "Raw" } }
 ]
 FrameID = 0x06
 

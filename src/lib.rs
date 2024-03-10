@@ -49,8 +49,15 @@ impl PacketSegment {
         match self {
             PacketSegment::Sized { name, bits, datatype } => {
                 let type_name = match datatype {
-                    SizedDataType::StringUTF8 => "char*".to_owned(),
+                    SizedDataType::StringUTF8 => {
+                        if static_arrays {
+                            //TODO: panic on non-byte divisible strings, since we don't have a
+                            //well-defined way of handling this. Also check for this in validator
+                            return vec![ format!("char {name}[{total}]", total = bits/8) ]
+                        }
 
+                        "char*".to_owned()
+                    },
                     // TODO: bitshifting for non-multiples-of-8-bit-types
                     SizedDataType::Integer { endianness: _, signing } => format!("{sign}int{bits}_t", sign = match signing {
                         Signing::OnesComplement | Signing::TwosComplement => "",
@@ -319,9 +326,9 @@ impl OpenPID {
                 PacketFormatElement::Payload => {
                     writes.push_str(&self.segment_writes(&payload.segments))
                 },
-                PacketFormatElement::Crc { algorithm } => (),
-                PacketFormatElement::SizeTotal { size_bits, express_as } => (),
-                PacketFormatElement::SizeOfElements { size_bits, express_as, elements } => ()
+                PacketFormatElement::Crc { algorithm } => (), //TODO
+                PacketFormatElement::SizeTotal { size_bits, express_as } => (),//TODO
+                PacketFormatElement::SizeOfElements { size_bits, express_as, elements } => ()//TODO
             }
         }
 
@@ -351,12 +358,67 @@ impl OpenPID {
         {return_struct_filler} 
         }};");
 
+        let mut reads = String::new();
+
+        for (idx, segment) in payload.segments.iter().enumerate() {
+            match segment {
+                PacketSegment::Sized { name, bits, datatype } => {
+                    match datatype {
+                        SizedDataType::Raw => {
+                            reads.push_str("device->read((uint8_t*)&ret.{name}, {bits});\n");
+                        },
+                        SizedDataType::Const { data } => {
+                            reads.push_str(&format!("{INDT}// Read the \"constant\" data in so we can compare it"));
+                            reads.push_str(&format!("{INDT}uint8_t actual_const_{idx}[{len}];\n", len = data.len()));
+                            reads.push_str(&format!("{INDT}uint8_t expected_const_{idx}[{len}] = {{ {array} }}\n", len = data.len(), array = data.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", ")));
+                            reads.push_str(&format!("{INDT}device->read((uint8_t*)&ret.{name}, {bits});\n"));
+                            reads.push_str(&format!("{INDT}//TODO: assert that this is the same as the expected const"));
+                            reads.push_str(&format!("{INDT}for(int i=0; i<{len}; i++) {{\n{INDT}assert(expected_const_{idx}[i] == actual_const_{idx}[i])\n{INDT}}}\n", len = data.len()));
+                        },
+                        SizedDataType::Integer { endianness, signing } => {
+                            reads.push_str(&format!("{INDT}device->read((uint8_t*)&ret.{name}, {bits});\n"));
+                            //TODO: process one's complement and endianness
+                        },
+                        SizedDataType::StringUTF8 => {
+                            reads.push_str(&format!("\n{INDT}device->read((uint8_t*)&ret.{name}, {bits})\n"));
+                            reads.push_str(&format!("{INDT}ret.{name}[{last_char}] = '\\0')\n", last_char = bits/8));
+                            //TODO null-terminate the string
+                            //TODO: make sure the struct string type has enough space for null
+                            //terminator
+                        },
+                        SizedDataType::FloatIEEE { endianness } => {
+                            //TODO endianness
+                            reads.push_str(&format!("{INDT}device->read((uint8_t*)&ret.{name}, {bits})\n"));
+                        }
+                    }
+                },
+                PacketSegment::Unsized { name, datatype, termination } => {
+                    match datatype {
+                        UnsizedDataType::Raw => {
+                            //TODO
+                        },
+                        UnsizedDataType::Array { item_struct } => {
+                            //TODO
+                        },
+                        UnsizedDataType::StringUTF8 => {
+                            //TODO
+                        }
+                    }
+                },
+                PacketSegment::Struct { name, struct_name } => {
+                    unimplemented!()
+                }
+            }
+        }
+
         Ok(formatdoc!("
         \n\n{return_struct}
 
         /// {description}
         {return_struct_name} RX{name}(struct Device* device) {{
-            
+        {INDT}{return_struct_name} ret;
+        {reads} 
+        {INDT}return ret;
         }}"))
     }
 
@@ -368,14 +430,15 @@ impl OpenPID {
             #include <stdio.h>
             #include <stdlib.h>
             #include <ctype.h>
+            #include <assert.h>
 
             struct Device {{
             {INDT}// Writes data with length to the device, returning bytes written, or a negative
-            {INDT}// number for an error.
+            {INDT}// number for an error. Should block until entire write is complete
             {INDT}int (*write)(uint8_t* data, size_t length_bits);
 
             {INDT}// Reads data with max length from the device, returning bytes read or a negative
-            {INDT}// number for an error
+            {INDT}// number for an error. Should block until read is complete
             {INDT}int (*read)(uint8_t* data, size_t length_bits);
             }};");
 

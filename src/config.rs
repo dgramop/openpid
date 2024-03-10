@@ -137,6 +137,7 @@ pub enum SizedDataType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
 pub enum UnsizedDataType {
     /// Several Repetitions of a given type
     Array {
