@@ -1,6 +1,7 @@
 # OpenPID
 ## OpenPID: Peripheral Interface Documentation Standard
-Our goal is to standardize how we document the communication interfaces of embedded peripherals.
+Our goal is to standardize how we document the communication interfaces of embedded peripherals. 
+This repository will validates OpenPID files, facilitates CodeGen and DocGen, and eventually serve as package manager.
 
 | Before OpenPID | After OpenPID |
 | --- | --- |
