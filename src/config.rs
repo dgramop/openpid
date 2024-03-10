@@ -26,8 +26,8 @@ pub enum BitsOrBytes {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ReusableStruct {
     /// Name of this struct, used in codegen and to reference this struct from other fields
-    name: String,
-    fields: Vec<PacketFormatElement>,
+    pub name: String,
+    pub fields: Vec<PacketFormatElement>,
     //TODO: privacy?
 }
 
@@ -52,22 +52,25 @@ pub enum Signing {
 
     /// Uses the two's complement rules to handle negative numbers. This is more common and the
     /// default on most computers
+    TwosComplement,
+
     #[default]
-    TwosComplement
+    Unsigned
 }
 
 /// Strategy for terminating an array. How should we know when to stop reading from the device?
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)] //make untagged?
 pub enum Terminator {
-    /// Reads this many elements
-    CountFixed(u32),
+    /// Reads/Writes this many elements
+    CountFixed { count: u32 },
 
     /// Uses the previously-read field name. Must be a field name referenced as part of the same
-    /// packet
+    /// packet. Inserts the Count at the given field name
     CountInPacket { field_name: String },
 
-    /// Stops when it finds the given pattern
-    WaitTillSequence(Vec<u8>)
+    /// Stops when it finds the given pattern, writes the pattern at the end
+    Sequence { sequence: Vec<u8> },
 
     //TODO: we should describe transactions that read/write multiple packets, in case the size is
     //supplied in another packet
@@ -84,6 +87,7 @@ pub enum Terminator {
 /// Represents a particular piece of data's type. In the literal sense, describes its
 /// interpretation. The actual length of the data is specified in bits elsewhere
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
 pub enum SizedDataType {
     //TODO: string and array are unsized. Maybe we should embed size into this enum
 
@@ -95,29 +99,31 @@ pub enum SizedDataType {
 
     /// Raw array of bytes
     Raw,
-    // TODO maybe enum?
+    // TODO enum and 
+    // enum variant
 
     /// Represents a UTF8 string
     StringUTF8,
 
     /// Hardcoded data
-    Const(Vec<u8>)
+    Const { data: Vec<u8> }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum UnsizedDataType {
     /// Several Repetitions of a given type
     Array {
-        /// This is basically a simplified sub-packet. Specify packet segments and we will read
-        /// them!
-        elements: Vec<PacketSegment>,
+        /// This is basically a simplified sub-packet. 
+        item_struct: String,
     },
     
     /// Represents a UTF8 string
     StringUTF8,
 
     /// Raw array of bytes
-    Raw
+    Raw,
+
+    // TODO enum_struct in unsized, for cases where other fields are tied to the
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -174,8 +180,8 @@ type PacketFormat = Vec<PacketFormatElement>;
 //TODO: multiple send/recieve formats? What if a packet is both send and recieve?
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AllPacketFormats {
-    send: PacketFormat, 
-    recieve: PacketFormat
+    pub tx: PacketFormat, 
+    pub rx: PacketFormat
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -195,31 +201,45 @@ pub enum PacketSegment {
         #[serde(rename = "type")]
         datatype: UnsizedDataType,
 
-        termination: Terminator
+        /// If None, the packet can only be TX'd! (TODO: codegen-time check this)
+        /// In this case, whatever the libary developer writes will be sent, and the size of what
+        /// is sent will not be communicated in any way to the device, except through the overall
+        /// packet/payload size, if included in the packet format
+        termination: Option<Terminator>
     },
-    Struct(String)
+    Struct { name: String, struct_name: String }
+}
+
+impl PacketSegment {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Self::Sized { name, .. } => name,
+            Self::Unsized { name, .. } => name,
+            Self::Struct { name, ..} => name
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Payload {
     /// Data inside this packet, in segments
-    segments: Vec<PacketSegment>,
+    pub segments: Vec<PacketSegment>,
 
     /// Metadata that can be referenced by the PacketFormat, for example a packet ID
     #[serde(flatten)]
-    metadata: BTreeMap<String, OneOrMany<PacketSegment>>,
+    pub metadata: BTreeMap<String, OneOrMany<PacketSegment>>,
     
     /// Optional description documentation
-    description: String
+    pub description: String
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AllPayloads {
     /// Packet formats that are sendable
-    send: BTreeMap<String, Payload>,
+    pub tx: BTreeMap<String, Payload>,
 
     /// Packet formats that are recievable
-    recieve: BTreeMap<String, Payload>,
+    pub rx: BTreeMap<String, Payload>,
 }
 
 /// An action that can be taken during a transaction
@@ -245,21 +265,23 @@ pub enum Action {
 pub struct Transaction {
     /// An ordered list of actions to take during a transaction, like sending or recieving a
     /// packet, or like sleeping or flushing the buffer
-    actions: Vec<Action>,
+    pub actions: Vec<Action>,
 
     /// List of field names to return (<packet>.<field>)
-    returns: Vec<String>,
+    pub returns: Vec<String>,
 
     /// Describes what this Transaction does
-    description: String
+    pub description: String
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeviceInfo {
-    name: String,
-    description: String
+    pub name: String,
+    pub description: String
 }
 
+//TODO: for interrupt-based systems, it would be nice to automatically parse the packet data
+//type/packetID based on the struct, and maybe even set a default transaction for that case.
 //TODO: this document is currently very UART-binary/streaming-focused. Maybe we should come up with
 //a similar format that uses some of the same structs for I2C etc. For i2c, we would re-use
 //transaction, but registers are basically fixed-size packets. 
@@ -268,37 +290,39 @@ pub struct DeviceInfo {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OpenPID {
     /// Information about the device
-    device_info: DeviceInfo,
+    pub device_info: DeviceInfo,
 
     /// Version of OpenICD to use
-    openpid_version: Option<String>,
+    pub openpid_version: Option<String>,
 
     /// This document's version
-    doc_version: Option<String>,
+    pub doc_version: Option<String>,
 
     /// Each packet format specifies what part of the packet goes where, sequence
     /// numbers, length fields, and other formatting choices that describe the entire packet. The
     /// lowest level description of your interface  
-    packet_formats: AllPacketFormats,
+    pub packet_formats: AllPacketFormats,
 
     /// Referenced by packets, describes re-usable packet contents that may be sent or recieved
     /// to/from the device 
-    structs: BTreeMap<String, ReusableStruct>,
+    pub structs: BTreeMap<String, ReusableStruct>,
 
     /// Describes the actual contents of the packets themselves, the next highest level description
     /// of your interface
-    payloads: AllPayloads,
+    pub payloads: AllPayloads,
 
     /// The highest level of your interface representable by OpenICD. If you want higher-level
     /// SDKs, you can wrap the codegen to make fancier stuff. The codegen will give you an
     /// excellent starting point so you can focus on creating value
-    transactions: BTreeMap<String, Transaction>
+    pub transactions: BTreeMap<String, Transaction>
     
     //TODO Higher level access that describes the state machines present in the device
     //this is for builder-style workflows, stuff that might need logic like a switch statement. For
     //example, a response that tells you what the type of the next packet is going to be, or that
     //tells us what our next request should be
     //state_machines: todo!(),
+    //TODO: not all platforms should have to support the state machine interface, to make it easier
+    //for people to "just release" platforms and get at least minimal access to sensors
     //TODO: higher level config for responses
 }
 
@@ -339,14 +363,12 @@ fn stub() -> Result<(), Box<dyn Error>> {
         openpid_version: None,
         doc_version: None,
         packet_formats: AllPacketFormats { 
-            send: PacketFormat::new(),
-            recieve: PacketFormat::new()
+            tx: PacketFormat::new(),
+            rx: PacketFormat::new()
         },
         structs,
-        payloads: AllPayloads { send: tx_payloads, recieve: rx_payloads },
+        payloads: AllPayloads { tx: tx_payloads, rx: rx_payloads },
         transactions,
     })?);
     Ok(())
 }
-
-

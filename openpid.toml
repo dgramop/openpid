@@ -3,14 +3,14 @@ name = "TargetPoint3"
 description = "PNI Sensor TargetPoint3 Serial Interface"
 
 [packet_formats]
-send = [ 
+tx = [ 
     { type = "SizeTotal", size_bits = 8, express_as = "Bytes" },
     { type = "Metadata", key = "FrameID" },
     { type = "Payload" },
     { type = "Crc", algorithm = "Crc16XModem" },
 ]
 
-recieve = [ 
+rx = [ 
     { type = "SizeTotal", size_bits = 8, express_as = "Bytes" },
     { type = "Metadata", key = "FrameID" },
     { type = "Payload" },
@@ -19,12 +19,22 @@ recieve = [
 
 [structs]
 
-[payloads.send.GetModInfo]
+[payloads.tx.GetModInfo]
 description = "This frame queries the device's type and firmware revision number. The frame has no payload."
 segments = []
 FrameID = { name = "FrameID", type = "Raw", bits = 8 }
 
-[payloads.recieve.GetModInfoResp]
+[payloads.tx.SetConfig]
+description = "Sets Internal Configurations in the TargetPoint3"
+segments = [
+    { name = "configid", bits = 8, type = {type = "Integer", signing = "Unsigned", endianness = "BigEndian"}},
+    
+    # When we add enum_structs, this will be a lot nicer to write out
+    { name = "value", type = "Raw" }
+]
+FrameID = { name = "FrameID", type = "Raw", bits = 8 }
+
+[payloads.rx.GetModInfoResp]
 description = "Response to GetModInfo"
 FrameID = { name = "FrameID", type = "Raw", bits = 8 }
 segments = [
