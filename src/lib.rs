@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate derive_more;
+extern crate rand;
 
 pub mod config;
 
@@ -9,6 +10,7 @@ pub mod prelude {
 
 use indoc::formatdoc;
 use prelude::*;
+use rand::Rng;
 
 #[derive(Debug, Display)]
 pub enum CodegenError {
@@ -21,6 +23,7 @@ impl From<std::io::Error> for Box<CodegenError> {
     }
 }
 
+/// Units of indentation
 const INDT: &'static str = "  ";
 
 impl OpenPID {
@@ -38,8 +41,8 @@ impl OpenPID {
                     SizedDataType::Raw => {
                         "byte*".to_owned()
                     },
-                    SizedDataType::Const { data } => {
-                        //should be skipped
+                    //should be skipped, since we will hardcode the contents
+                    SizedDataType::Const { .. } => {
                         return vec![];
                     },
                     SizedDataType::FloatIEEE { endianness } => {
@@ -70,17 +73,13 @@ impl OpenPID {
         }
     }
 
-    pub fn c_emit_tx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
-        let description = &payload.description;
-        let args = payload.segments.iter()
-            .map(Self::segment_to_c_vars            )
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(", ");
 
+    /// Setup and calls to device->write() for each payload segment. May be used for writing
+    /// metadata, or other segment data
+    fn segment_writes(&self, segments: &Vec<PacketSegment>) -> String {
         let mut writes = String::new();
 
-        for segment in &payload.segments {
+        for segment in segments {
             match segment {
                 PacketSegment::Sized { name, bits, datatype } => {
                     match datatype {
@@ -136,7 +135,7 @@ impl OpenPID {
 
                             // while this simple re-assignment is basically a no-op, c optimizer
                             // will eliminate performance hit
-                            let target_segment = payload.segments.iter().find(|i| i.get_name() == field_name).expect(&format!("Ref not found for {}", field_name));
+                            let target_segment = segments.iter().find(|i| i.get_name() == field_name).expect(&format!("Ref not found for {}", field_name));
 
                             assert!(match target_segment {
                                 PacketSegment::Sized { .. } => true,
@@ -177,10 +176,69 @@ impl OpenPID {
             }
         }
 
+        writes
+    }
+
+    pub fn c_emit_tx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
+        let description = &payload.description;
+        let args = payload.segments.iter()
+            .map(Self::segment_to_c_vars            )
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let mut writes = String::new();
+
+        for format_element in &self.packet_formats.tx {
+            match format_element {
+                PacketFormatElement::Crc { algorithm } => {
+                    //TODO: crc implementations or library
+                    //todo!()
+                }
+                PacketFormatElement::SizeOfPayload {  size_bits, express_as } => {
+                    //TODO: need a write size estimator
+                },
+                PacketFormatElement::Metadata { key } => {
+                    let segments = payload.metadata.get(key).expect("All references to metadata should exist");
+                    writes.push_str(&match segments {
+                        OneOrMany::One(one) => self.segment_writes(&vec![one.clone()]),
+                        OneOrMany::Many(many) => self.segment_writes(many)
+                    });
+
+                    // write the segments just like we write the payload
+                    //TODO
+                    todo!()
+                },
+                PacketFormatElement::Const { data, bits } => {
+                    let bits = match bits {
+                        Some(bits) => *bits,
+                        None => data.len()*8
+                    };
+
+                    let data_byte_length = data.len();
+                    let data_array = data.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ");
+                    //TODO: prevent name conflicts if there are multiple consts in the header
+                    let rstr = String::from_utf8(rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(6).collect::<Vec<_>>()).expect("randomly generated alphanumeric characters are utf8, since alphanum ascii is a subset of utf8");
+                    writes.push_str(&formatdoc!("
+                    {INDT}byte const_{name}[{data_byte_length}] = [{data_array}];
+                    {INDT}device->write({name}, {bits});
+                    "));
+                },
+                PacketFormatElement::Payload => {
+                    writes.push_str(&self.segment_writes(&payload.segments))
+                },
+                PacketFormatElement::Crc { algorithm } => todo!(),
+                PacketFormatElement::SizeTotal { size_bits, express_as } => todo!(),
+                PacketFormatElement::SizeOfElements { size_bits, express_as, elements } => todo!()
+            }
+        }
+
+        
+
         Ok(formatdoc!("
         \n\n
         // {description}
-        void {name}(struct Device* device, {args}) {{
+        void TX{name}(struct Device* device, {args}) {{
         {writes}
         }}"))
     }
@@ -194,7 +252,7 @@ impl OpenPID {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let return_struct_name = format!("struct {name}");
+        let return_struct_name = format!("struct RX{name}");
 
         let return_struct = formatdoc!("
         {return_struct_name} {{ 
@@ -205,7 +263,7 @@ impl OpenPID {
         \n\n{return_struct}
 
         // {description}
-        {return_struct_name} {name}(struct Device* device) {{
+        {return_struct_name} RX{name}(struct Device* device) {{
             
         }}"))
     }
@@ -251,5 +309,6 @@ impl OpenPID {
         // through a struct
         // make sure rx packet format does not have an Unterminated Unsized data type
         // return value references fields that exist
+        // make sure references to metadata exist in all packets
     }
 }

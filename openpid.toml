@@ -24,6 +24,15 @@ description = "This frame queries the device's type and firmware revision number
 segments = []
 FrameID = { name = "FrameID", type = "Raw", bits = 8 }
 
+[payloads.rx.GetModInfoResp]
+description = "Response to GetModInfo"
+FrameID = { name = "FrameID", type = "Raw", bits = 8 }
+segments = [
+#    { name = "type", bits = 32, type = { type = "Integer", endianness = "BigEndian" } },
+    { name = "type", bits = 32, type = "StringUTF8" },
+    { name = "revision", bits = 32, type = "StringUTF8" }
+]
+
 [payloads.tx.SetConfig]
 description = "Sets Internal Configurations in the TargetPoint3"
 segments = [
@@ -34,14 +43,11 @@ segments = [
 ]
 FrameID = { name = "FrameID", type = "Raw", bits = 8 }
 
-[payloads.rx.GetModInfoResp]
-description = "Response to GetModInfo"
+[payloads.rx.SetConfigDone]
+description = "Response to SetConfig frame"
+segments = [ ]
 FrameID = { name = "FrameID", type = "Raw", bits = 8 }
-segments = [
-#    { name = "type", bits = 32, type = { type = "Integer", endianness = "BigEndian" } },
-    { name = "type", bits = 32, type = "StringUTF8" },
-    { name = "revision", bits = 32, type = "StringUTF8" }
-]
+
 
 [transactions.GetModInfo]
 description = "Gets device type and firmware revision number"

@@ -1,18 +1,25 @@
 use std::{collections::BTreeMap, error::Error};
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum OneOrMany<T> {
+pub enum OneOrMany<T> where T: Clone {
     One(T),
     Many(Vec<T>),
 }
 
-impl<T> OneOrMany<T> {
+impl<T> OneOrMany<T> where T: Clone {
     pub fn as_many(self) -> Vec<T> {
         match self {
             OneOrMany::One(one) => vec![one],
             OneOrMany::Many(vec) => vec
+        }
+    }
+
+    pub fn as_many_ref(&self) -> Vec<&T> {
+        match self {
+            OneOrMany::One(one) => vec![one],
+            OneOrMany::Many(vec) => vec.iter().collect::<Vec<_>>()
         }
     }
 }
@@ -31,7 +38,7 @@ pub struct ReusableStruct {
     //TODO: privacy?
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub enum Endianness {
     /// Most significant bit shows up first (at a lower memory address). If we visualize memory
     /// addresses as increasing from left to right, the most significant bit would be on the left,
@@ -45,7 +52,7 @@ pub enum Endianness {
     LittleEndian
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub enum Signing {
     /// Uses the first bit to flag negative numbers. 
     OnesComplement,
@@ -59,7 +66,7 @@ pub enum Signing {
 }
 
 /// Strategy for terminating an array. How should we know when to stop reading from the device?
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)] //make untagged?
 pub enum Terminator {
     /// Reads/Writes this many elements
@@ -86,7 +93,7 @@ pub enum Terminator {
 // packets that are completely sized can be read from stream in a single shot
 /// Represents a particular piece of data's type. In the literal sense, describes its
 /// interpretation. The actual length of the data is specified in bits elsewhere
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum SizedDataType {
     //TODO: string and array are unsized. Maybe we should embed size into this enum
@@ -109,7 +116,7 @@ pub enum SizedDataType {
     Const { data: Vec<u8> }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum UnsizedDataType {
     /// Several Repetitions of a given type
     Array {
@@ -123,7 +130,16 @@ pub enum UnsizedDataType {
     /// Raw array of bytes
     Raw,
 
+    /*
     // TODO enum_struct in unsized, for cases where other fields are tied to the
+    /// A union of structs whose actual type is decided upon by an enum.
+    /// Like Rust's enum's struct variants
+    EnumStruct {
+        //TODO: make the key more broad
+        //the value refers to a struct. The problem is returning this out or matching out of it's
+        //fields in a state machine
+        variants: HashMap<i32, String>
+    }*/
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -172,7 +188,7 @@ pub enum PacketFormatElement {
     Crc { algorithm: Crc },
 
     /// A fixed value/flag to include in every packet
-    Const { data: Vec<u8> }
+    Const { data: Vec<u8>, bits: Option<usize>}
 }
 
 type PacketFormat = Vec<PacketFormatElement>;
@@ -184,7 +200,7 @@ pub struct AllPacketFormats {
     pub rx: PacketFormat
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum PacketSegment {
     Sized {
