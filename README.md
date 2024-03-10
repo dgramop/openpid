@@ -4,7 +4,7 @@ Our goal is to standardize how we document the communication interfaces of embed
 
 | Before OpenPID | After OpenPID |
 | --- | --- |
-| <img alt="Messy graph with edges between each platform and peripheral, representing the drivers that need to be implemented" src="./no_openpid.svg" width="400"/> | <img alt="Simpler graph with fewer edges. Each peripheral exports the same file format, which can be converted to any platform for which codegen exists" src="./pitch.svg" width="400"/> |
+| <img alt="Messy graph with edges between each platform and peripheral, representing the drivers that need to be implemented" src="./no_openpid.svg" width="300"/> | <img alt="Simpler graph with fewer edges. Each peripheral exports the same file format, which can be converted to any platform for which codegen exists" src="./pitch.svg" width="500"/> |
 
 By creating a stable and flexible intermediate file format, peripheral manufacturers need only to export an `openpid.toml` file, which can then be used to generate code, documentation etc. accross platforms.
 
