@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 derive_more = "0.99.17"
 indoc = "2.0.4"
+mdbook = "0.4.37"
 rand = "0.8.5"
 serde = { version = "1.0.197", features = ["derive"] }
 toml = "0.8.10"
