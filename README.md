@@ -1,9 +1,10 @@
 # OpenPID
-## OpenPID: Peripheral Interface Documentation
+## OpenPID: Peripheral Interface Documentation Standard
 Our goal is to standardize how we document the communication interfaces of embedded peripherals.
 
-![Messy graph with edges between each platform and peripheral, representing the drivers that need to be implemented](./no_openpid.svg)
-![Simpler graph with fewer edges. Each peripheral exports the same file format, which can be converted to any platform for which codegen exists](./pitch.svg)
+| Before OpenPID | After OpenPID |
+| --- | --- |
+| ![Messy graph with edges between each platform and peripheral, representing the drivers that need to be implemented](./no_openpid.svg) | ![Simpler graph with fewer edges. Each peripheral exports the same file format, which can be converted to any platform for which codegen exists](./pitch.svg) |
 
 By creating a stable and flexible intermediate file format, peripheral manufacturers need only to export an `openpid.toml` file, which can then be used to generate code, documentation etc. accross platforms.
 
