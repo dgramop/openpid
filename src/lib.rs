@@ -26,9 +26,9 @@ impl From<std::io::Error> for Box<CodegenError> {
 /// Units of indentation
 const INDT: &'static str = "  ";
 
-impl OpenPID {
-    fn segment_to_c_vars(segment: &PacketSegment) -> Vec<String> {
-        match segment {
+impl PacketSegment {
+    fn to_c_vars(&self) -> Vec<String> {
+        match self {
             PacketSegment::Sized { name, bits, datatype } => {
                 let type_name = match datatype {
                     SizedDataType::StringUTF8 => "char*".to_owned(),
@@ -71,6 +71,24 @@ impl OpenPID {
             },
             PacketSegment::Struct { name , struct_name} => unimplemented!("No struct support yet")
         }
+    }
+}
+
+impl OpenPID {
+    fn emit_struct(&self, struct_: &ReusableStruct) -> String {
+        let name = &struct_.name;
+        let fields = struct_.fields.iter()
+            .map(|s| s.to_c_vars())
+            .flatten()
+            .map(|var| format!("{INDT}{var};"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        formatdoc!("
+        struct {name} {{
+        {fields}
+        }};
+        ")
     }
 
 
@@ -142,7 +160,7 @@ impl OpenPID {
                                 _ => false
                             }, "The variable ({seg_name}) into which the count for {name} is being inserted must be sized, ideally a sized integer", seg_name = segment.get_name());
 
-                            let vars = Self::segment_to_c_vars(target_segment);
+                            let vars = target_segment.to_c_vars();
 
                             // This must be some kind of integer type, cannot be unsized
                             assert_eq!(vars.len(), 1, "Since the segment is sized and not a constant, there should be one variable emitted from it");
@@ -179,10 +197,11 @@ impl OpenPID {
         writes
     }
 
+    /// Emits a transmit packet function for a given payload
     pub fn c_emit_tx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
         let description = &payload.description;
         let args = payload.segments.iter()
-            .map(Self::segment_to_c_vars            )
+            .map(|s| s.to_c_vars())
             .flatten()
             .collect::<Vec<_>>()
             .join(", ");
@@ -198,16 +217,26 @@ impl OpenPID {
                 PacketFormatElement::SizeOfPayload {  size_bits, express_as } => {
                     //TODO: need a write size estimator
                 },
-                PacketFormatElement::Metadata { key } => {
-                    let segments = payload.metadata.get(key).expect("All references to metadata should exist");
-                    writes.push_str(&match segments {
-                        OneOrMany::One(one) => self.segment_writes(&vec![one.clone()]),
-                        OneOrMany::Many(many) => self.segment_writes(many)
-                    });
-
-                    // write the segments just like we write the payload
+                PacketFormatElement::Metadata { segment } => {
                     //TODO
-                    todo!()
+                    let name = segment.get_name();
+                    let literal = payload.metadata.get(segment.get_name()).expect("All references to metadata should exist");
+                    // write the segments just like we write the payload
+
+                    //TODO: handling for Const
+                    //Metadata with Const inside of it is equivalent to just having Const inside packet
+                    //format directly. Maybe I can reject this case.
+
+                    let vars = segment.to_c_vars();
+                    assert!(vars.len() == 1, "should only have 1 var");
+                    writes.push_str(&format!("{INDT}{} = {};\n", vars[0], literal.to_string()));
+                    writes.push_str(&self.segment_writes(&vec![segment.clone()]));
+                    
+                    /*writes.push_str(&match segments {
+                        OneOrMany::One(one) => 
+                        OneOrMany::Many(many) => self.segment_writes(many)
+                    });*/
+
                 },
                 PacketFormatElement::Const { data, bits } => {
                     let bits = match bits {
@@ -226,9 +255,9 @@ impl OpenPID {
                 PacketFormatElement::Payload => {
                     writes.push_str(&self.segment_writes(&payload.segments))
                 },
-                PacketFormatElement::Crc { algorithm } => todo!(),
-                PacketFormatElement::SizeTotal { size_bits, express_as } => todo!(),
-                PacketFormatElement::SizeOfElements { size_bits, express_as, elements } => todo!()
+                PacketFormatElement::Crc { algorithm } => (),
+                PacketFormatElement::SizeTotal { size_bits, express_as } => (),
+                PacketFormatElement::SizeOfElements { size_bits, express_as, elements } => ()
             }
         }
 
@@ -245,7 +274,7 @@ impl OpenPID {
     pub fn c_emit_rx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
         let description = &payload.description;
         let return_struct_filler = payload.segments.iter()
-            .map(Self::segment_to_c_vars            )
+            .map(|s| s.to_c_vars())
             .flatten()
             .map(|t| format!("{INDT}{t};"))
             .collect::<Vec<_>>()
@@ -285,6 +314,10 @@ impl OpenPID {
             {INDT}int (*read)(byte* data, size_t length_bits) read,
             }}");
 
+        for (name, struct_) in self.structs.iter() {
+            contents.push_str(&self.emit_struct(struct_))
+        }
+
         for (name, payload) in self.payloads.tx.iter() {
             contents.push_str(&self.c_emit_tx_function(name, payload)?)
         }
@@ -309,5 +342,14 @@ impl OpenPID {
         // make sure rx packet format does not have an Unterminated Unsized data type
         // return value references fields that exist
         // make sure references to metadata exist in all packets
+        // metadata cannot contain Const, since it's basically already Constant. Use PacketFormatElement::Const instead
+        // metadata literals are correct and compatible in each packet
+    }
+}
+
+impl Payload {
+    /// Estimates a payload's size, not including headers etc.
+    pub(crate) fn get_size() -> u32 {
+        todo!()
     }
 }

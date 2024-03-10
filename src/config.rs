@@ -34,7 +34,7 @@ pub enum BitsOrBytes {
 pub struct ReusableStruct {
     /// Name of this struct, used in codegen and to reference this struct from other fields
     pub name: String,
-    pub fields: Vec<PacketFormatElement>,
+    pub fields: Vec<PacketSegment>,
     //TODO: privacy?
 }
 
@@ -108,6 +108,7 @@ pub enum SizedDataType {
     Raw,
     // TODO enum and 
     // enum variant
+    // TODO bool
 
     /// Represents a UTF8 string
     StringUTF8,
@@ -167,8 +168,6 @@ pub enum PacketFormatElement {
         express_as: BitsOrBytes
     },
 
-    //TODO: packetID here instead of payload
-
     /// Size of all the elements listed in `elements`
     SizeOfElements {
         size_bits: u32,
@@ -178,10 +177,18 @@ pub enum PacketFormatElement {
 
     /// The payload of the actual packet
     Payload,
+    //TODO: allow multiple payloads?
 
     /// Reference metadata from the payload for use in a header/footer, for example a packet ID
     Metadata { 
-        key: String
+        //The benefit of using metadata instead of having a bunch of Const's, is that you can
+        //enforce compliance to your format and have a clean consistent toml file with seemingly
+        //"custom" parameters, making creating all the different payloads a whole lot easier
+        //key: String,
+        //TODO: figure out renaming for the "type" field
+        //look up the name as the key. Use the value as a literal. 
+        //#[serde(flatten)]
+        segment: PacketSegment
     },
 
     /// Crc/hash strategy
@@ -242,8 +249,9 @@ pub struct Payload {
     pub segments: Vec<PacketSegment>,
 
     /// Metadata that can be referenced by the PacketFormat, for example a packet ID
+    /// Must be a constant inside the config file
     #[serde(flatten)]
-    pub metadata: BTreeMap<String, OneOrMany<PacketSegment>>,
+    pub metadata: BTreeMap<String, toml::Value>,
     
     /// Optional description documentation
     pub description: String

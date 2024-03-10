@@ -5,14 +5,15 @@ description = "PNI Sensor TargetPoint3 Serial Interface"
 [packet_formats]
 tx = [ 
     { type = "SizeTotal", size_bits = 8, express_as = "Bytes" },
-    { type = "Metadata", key = "FrameID" },
+    # maybe collapse the integer and other numeric types to be a bunch of unit variants so that it's less nested and confusing
+    { type = "Metadata", segment = { name = "FrameID", bits = 8, type = { type = "Integer", signing = "Unsigned", endianness = "BigEndian"} } },
     { type = "Payload" },
     { type = "Crc", algorithm = "Crc16XModem" },
 ]
 
 rx = [ 
     { type = "SizeTotal", size_bits = 8, express_as = "Bytes" },
-    { type = "Metadata", key = "FrameID" },
+    { type = "Metadata", segment = { name = "FrameID", bits = 8, type = { type = "Integer", signing = "Unsigned", endianness = "BigEndian"} } },
     { type = "Payload" },
     { type = "Crc", algorithm = "Crc16XModem" },
 ]
@@ -22,11 +23,11 @@ rx = [
 [payloads.tx.GetModInfo]
 description = "This frame queries the device's type and firmware revision number. The frame has no payload."
 segments = []
-FrameID = { name = "FrameID", type = "Raw", bits = 8 }
+FrameID = 0x01
 
 [payloads.rx.GetModInfoResp]
 description = "Response to GetModInfo"
-FrameID = { name = "FrameID", type = "Raw", bits = 8 }
+FrameID = 0x02
 segments = [
 #    { name = "type", bits = 32, type = { type = "Integer", endianness = "BigEndian" } },
     { name = "type", bits = 32, type = "StringUTF8" },
@@ -41,12 +42,12 @@ segments = [
     # When we add enum_structs, this will be a lot nicer to write out
     { name = "value", type = "Raw" }
 ]
-FrameID = { name = "FrameID", type = "Raw", bits = 8 }
+FrameID = 0x06
 
 [payloads.rx.SetConfigDone]
 description = "Response to SetConfig frame"
 segments = [ ]
-FrameID = { name = "FrameID", type = "Raw", bits = 8 }
+FrameID = 0x13
 
 
 [transactions.GetModInfo]
