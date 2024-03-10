@@ -251,7 +251,7 @@ pub struct Payload {
     /// Metadata that can be referenced by the PacketFormat, for example a packet ID
     /// Must be a constant inside the config file
     #[serde(flatten)]
-    pub metadata: BTreeMap<String, toml::Value>,
+    pub metadata: BTreeMap<String, OneOrMany<toml::Value>>,
     
     /// Optional description documentation
     pub description: String

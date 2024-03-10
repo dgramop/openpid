@@ -27,7 +27,19 @@ impl From<std::io::Error> for Box<CodegenError> {
 const INDT: &'static str = "  ";
 
 impl PacketSegment {
-    fn to_c_vars(&self) -> Vec<String> {
+    /// Returns variables necessary for sending/recieving this field. 
+    /// 
+    /// # Rreturns
+    /// If Self is a constant, no variables are
+    /// necessary since the field will be checked & discarded on recieve or hardcoded on transmit,
+    /// so returns an empty array in this case. 
+    ///
+    /// If Self is an array type that is unsized, we will need a length to describe it. In this
+    /// case, will return a two element Vec. 
+    ///
+    /// Will never return more than 2 elements. If it returns a two element vec, the second element
+    /// is the length variable requirement
+    fn get_necessary_c_vars(&self) -> Vec<String> {
         match self {
             PacketSegment::Sized { name, bits, datatype } => {
                 let type_name = match datatype {
@@ -78,7 +90,7 @@ impl OpenPID {
     fn emit_struct(&self, struct_: &ReusableStruct) -> String {
         let name = &struct_.name;
         let fields = struct_.fields.iter()
-            .map(|s| s.to_c_vars())
+            .map(|s| s.get_necessary_c_vars())
             .flatten()
             .map(|var| format!("{INDT}{var};"))
             .collect::<Vec<_>>()
@@ -160,7 +172,7 @@ impl OpenPID {
                                 _ => false
                             }, "The variable ({seg_name}) into which the count for {name} is being inserted must be sized, ideally a sized integer", seg_name = segment.get_name());
 
-                            let vars = target_segment.to_c_vars();
+                            let vars = target_segment.get_necessary_c_vars();
 
                             // This must be some kind of integer type, cannot be unsized
                             assert_eq!(vars.len(), 1, "Since the segment is sized and not a constant, there should be one variable emitted from it");
@@ -200,11 +212,13 @@ impl OpenPID {
     /// Emits a transmit packet function for a given payload
     pub fn c_emit_tx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
         let description = &payload.description;
-        let args = payload.segments.iter()
-            .map(|s| s.to_c_vars())
+        let mut args = payload.segments.iter()
+            .map(|s| s.get_necessary_c_vars())
             .flatten()
-            .collect::<Vec<_>>()
-            .join(", ");
+            .collect::<Vec<_>>();
+
+        args.insert(0, "struct Device* device".to_owned());
+        let args = args.join(", ");
 
         let mut writes = String::new();
 
@@ -218,7 +232,8 @@ impl OpenPID {
                     //TODO: need a write size estimator
                 },
                 PacketFormatElement::Metadata { segment } => {
-                    //TODO
+                    //TODO: Support for dynamic types and lists that require us to populate
+                    //multiple variables
                     let name = segment.get_name();
                     let literal = payload.metadata.get(segment.get_name()).expect("All references to metadata should exist");
                     // write the segments just like we write the payload
@@ -227,9 +242,35 @@ impl OpenPID {
                     //Metadata with Const inside of it is equivalent to just having Const inside packet
                     //format directly. Maybe I can reject this case.
 
-                    let vars = segment.to_c_vars();
-                    assert!(vars.len() == 1, "should only have 1 var");
-                    writes.push_str(&format!("{INDT}{} = {};\n", vars[0], literal.to_string()));
+                    let vars = segment.get_necessary_c_vars();
+
+                    match (vars.len(), literal) {
+                        (1, OneOrMany::One(literal)) => {
+                            writes.push_str(&format!("{INDT}{} = {};\n", vars[0], literal.to_string()));
+                        },
+                        (1, OneOrMany::Many(_)) => {
+                            //TODO: may be allowed in some cases, i.e. fixed-size arrays. Figure
+                            //out if this is true and make the behavior correct
+                            unimplemented!("Expected one item, but got several. This may become possible in the future for fized-and-known-size elements");
+                        }
+                        (2, OneOrMany::Many(literal)) => {
+                            // assumption: if to_c_vars() returns two variables, the second is the length
+                            // variable. This is documented in the spec for get_necessary_c_vars
+                            // TODO: fix this. Probably use our own untagged Value struct to keep
+                            // things sane
+                            writes.push_str(&format!("{INDT}{} = {{ {} }};\n", vars[0], literal.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ") ));
+
+                            // the second required var is the length
+                            writes.push_str(&format!("{INDT}{} = {};\n", vars[1], literal.len()));
+                        },
+                        (2, OneOrMany::One(o)) => {
+                            panic!("TODO: error handling. One found when many expected. Please covert to an array ( {o} -> [{o}] )");
+                        }
+                        _ => {
+                            panic!("More than 2 variables came back! ");
+                        }
+                    }
+
                     writes.push_str(&self.segment_writes(&vec![segment.clone()]));
                     
                     /*writes.push_str(&match segments {
@@ -266,7 +307,7 @@ impl OpenPID {
         Ok(formatdoc!("
         \n\n
         // {description}
-        void TX{name}(struct Device* device, {args}) {{
+        void TX{name}({args}) {{
         {writes}
         }}"))
     }
@@ -274,7 +315,7 @@ impl OpenPID {
     pub fn c_emit_rx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
         let description = &payload.description;
         let return_struct_filler = payload.segments.iter()
-            .map(|s| s.to_c_vars())
+            .map(|s| s.get_necessary_c_vars())
             .flatten()
             .map(|t| format!("{INDT}{t};"))
             .collect::<Vec<_>>()
@@ -301,17 +342,18 @@ impl OpenPID {
         println!("{:?}",destination.exists());
         let file = destination.join("lib.c");
         let mut contents = formatdoc!("
-            #include <stdio>
-            #include <stdlib>
+            #include <stdio.h>
+            #include <stdlib.h>
+            #include <ctype.h>
 
             struct Device {{
             {INDT}// Writes data with length to the device, returning bytes written, or a negative
             {INDT}// number for an error.
-            {INDT}int (*write)(uint8_t* data, size_t length_bits),
+            {INDT}int (*write)(uint8_t* data, size_t length_bits);
 
             {INDT}// Reads data with max length from the device, returning bytes read or a negative
             {INDT}// number for an error
-            {INDT}int (*read)(uint8_t* data, size_t length_bits) read,
+            {INDT}int (*read)(uint8_t* data, size_t length_bits);
             }}");
 
         for (name, struct_) in self.structs.iter() {
