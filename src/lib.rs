@@ -103,7 +103,7 @@ impl OpenPID {
                             let data_byte_length = data.len();
                             let data_array = data.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ");
                             writes.push_str(&formatdoc!("
-                            {INDT}byte {name}[{data_byte_length}] = [{data_array}];
+                            {INDT}byte {name}[{data_byte_length}] = {{ {data_array} }};
                             {INDT}device->write({name}, {bits});
                             "));
                         }
@@ -189,7 +189,7 @@ impl OpenPID {
 
         let mut writes = String::new();
 
-        for format_element in &self.packet_formats.tx {
+        for (idx, format_element) in self.packet_formats.tx.iter().enumerate() {
             match format_element {
                 PacketFormatElement::Crc { algorithm } => {
                     //TODO: crc implementations or library
@@ -217,11 +217,10 @@ impl OpenPID {
 
                     let data_byte_length = data.len();
                     let data_array = data.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ");
-                    //TODO: prevent name conflicts if there are multiple consts in the header
-                    let rstr = String::from_utf8(rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(6).collect::<Vec<_>>()).expect("randomly generated alphanumeric characters are utf8, since alphanum ascii is a subset of utf8");
+                    //index used to prevent name conflicts if there are multiple consts in the header
                     writes.push_str(&formatdoc!("
-                    {INDT}byte const_{name}[{data_byte_length}] = [{data_array}];
-                    {INDT}device->write({name}, {bits});
+                    {INDT}byte format_const_{idx}[{data_byte_length}] = {{ {data_array} }};
+                    {INDT}device->write(format_const_{idx}, {bits});
                     "));
                 },
                 PacketFormatElement::Payload => {
