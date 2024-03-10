@@ -2,6 +2,22 @@
 ## OpenPID: Peripheral Interface Documentation
 Our goal is to standardize how we document the communication interfaces of embedded peripherals.
 
+![Messy graph with edges between each platform and peripheral, representing the drivers that need to be implemented](./no_openpid.svg)
+![Simpler graph with fewer edges. Each peripheral exports the same file format, which can be converted to any platform for which codegen exists](./pitch.svg)
+
+By creating a stable and flexible intermediate file format, peripheral manufacturers need only to export an `openpid.toml` file, which can then be used to generate code, documentation etc. accross platforms.
+
+Engineers are more likely to choose sensors that are easier to integrate with. Fragmentation in languages used (C, C++, Rust, even Python) and environments (FreeRTOS, mbed etc.) make it infeasable to write drivers for every platform by-hand. High-quality codegen enables first-class integrations across even esoteric platforms
+
+Benefits:
+- Address more of the market by supporting more platforms
+- Reduce engineering time spent writing repetitive drivers over and over accross platforms
+- Once codegen exists for a platform, all users of that platform benefit from the entire set of sensors that export `openpid.toml` files, past, present, and future
+- Codegen provides consistency and predictability. If codegen passes tests (TODO), it'll work for your sensor. When compared to directly writing drivers, that's a lot less code to babysit to maturity.
+- Documentation and generated code will be consistent with each other. That means inconsistencies in docs are easier to iron out
+
+
+
 ## Quick-Start
 
 ## Examples
@@ -10,6 +26,12 @@ Our goal is to standardize how we document the communication interfaces of embed
 
 ## License: GPL
 
+## Priorirites:
+- Stability: It's OK if we aren't able to generate fancy, high-level wrappers, if it means introducing bugs
+- Underabstraction: We want this specification to apply to nearly all peripherals. For this reason, high-level abstractions that make assumptions or affect performance should be opt-in or left out altogether.
+- Wide applicability: Enabled by underabstraction, and a flexibile format that covers nearly all use cases.
+
+The big trade off is the abstraction <-> applicability scale. This project trades abstraction for applicability.
 
 ## Credits:
 OpenAPI is used as a source of inspiration.
