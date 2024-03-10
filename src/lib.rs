@@ -39,7 +39,13 @@ impl PacketSegment {
     ///
     /// Will never return more than 2 elements. If it returns a two element vec, the second element
     /// is the length variable requirement
-    fn get_necessary_c_vars(&self) -> Vec<String> {
+    ///
+    /// # Arguments
+    /// * `static_arrays` - If this is to be used as a "local_var". In particular, will make
+    /// known-sized arrays in static declaration syntax
+    /// * `skip_const` - Whether to skip Const data types (for example, when generating
+    /// arguments or return values)
+    fn get_necessary_c_vars(&self, static_arrays: bool, skip_const: bool) -> Vec<String> {
         match self {
             PacketSegment::Sized { name, bits, datatype } => {
                 let type_name = match datatype {
@@ -51,11 +57,26 @@ impl PacketSegment {
                         Signing::Unsigned => "u"
                     }),
                     SizedDataType::Raw => {
+                        if static_arrays {
+                            //TODO: ceiling function for non-8-bit-multiple lengths
+                            return vec![ format!("uint8_t {name}[{total}]", total = bits/8) ]
+                        }
+
                         "uint8_t*".to_owned()
                     },
                     //should be skipped, since we will hardcode the contents
-                    SizedDataType::Const { .. } => {
-                        return vec![];
+                    SizedDataType::Const { data } => {
+                        //TODO include Const
+                        if skip_const {
+                            return vec![];
+                        }
+
+                        if static_arrays {
+                            //TODO: ceiling function for non-8-bit-multiple lengths
+                            return vec![ format!("uint8_t {name}[{}]", data.len()) ];
+                        } 
+
+                        format!("uint8_t*")
                     },
                     SizedDataType::FloatIEEE { endianness } => {
                         match bits {
@@ -90,7 +111,7 @@ impl OpenPID {
     fn emit_struct(&self, struct_: &ReusableStruct) -> String {
         let name = &struct_.name;
         let fields = struct_.fields.iter()
-            .map(|s| s.get_necessary_c_vars())
+            .map(|s| s.get_necessary_c_vars(true, true))
             .flatten()
             .map(|var| format!("{INDT}{var};"))
             .collect::<Vec<_>>()
@@ -172,7 +193,7 @@ impl OpenPID {
                                 _ => false
                             }, "The variable ({seg_name}) into which the count for {name} is being inserted must be sized, ideally a sized integer", seg_name = segment.get_name());
 
-                            let vars = target_segment.get_necessary_c_vars();
+                            let vars = target_segment.get_necessary_c_vars(false,false);
 
                             // This must be some kind of integer type, cannot be unsized
                             assert_eq!(vars.len(), 1, "Since the segment is sized and not a constant, there should be one variable emitted from it");
@@ -213,7 +234,7 @@ impl OpenPID {
     pub fn c_emit_tx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
         let description = &payload.description;
         let mut args = payload.segments.iter()
-            .map(|s| s.get_necessary_c_vars())
+            .map(|s| s.get_necessary_c_vars(false, true))
             .flatten()
             .collect::<Vec<_>>();
 
@@ -242,7 +263,8 @@ impl OpenPID {
                     //Metadata with Const inside of it is equivalent to just having Const inside packet
                     //format directly. Maybe I can reject this case.
 
-                    let vars = segment.get_necessary_c_vars();
+                    // maybe make the get_necessary_c_vars have an option for initalization
+                    let vars = segment.get_necessary_c_vars(true, false);
 
                     match (vars.len(), literal) {
                         (1, OneOrMany::One(literal)) => {
@@ -260,11 +282,12 @@ impl OpenPID {
                             // things sane
                             writes.push_str(&format!("{INDT}{} = {{ {} }};\n", vars[0], literal.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ") ));
 
-                            // the second required var is the length
-                            writes.push_str(&format!("{INDT}{} = {};\n", vars[1], literal.len()));
+                            // the second required var is the length 
+                            // TODO
+                            writes.push_str(&format!("{INDT}{} = {}*8;\n", vars[1], literal.len()));
                         },
                         (2, OneOrMany::One(o)) => {
-                            panic!("TODO: error handling. One found when many expected. Please covert to an array ( {o} -> [{o}] )");
+                            panic!("TODO: error handling. One found when many expected. Please covert to an array ( {o} -> [{o}] )", o = o.to_string());
                         }
                         _ => {
                             panic!("More than 2 variables came back! ");
@@ -315,7 +338,7 @@ impl OpenPID {
     pub fn c_emit_rx_function(&self, name: &str, payload: &Payload) -> Result<String, Box<CodegenError>> {
         let description = &payload.description;
         let return_struct_filler = payload.segments.iter()
-            .map(|s| s.get_necessary_c_vars())
+            .map(|s| s.get_necessary_c_vars(true, true))
             .flatten()
             .map(|t| format!("{INDT}{t};"))
             .collect::<Vec<_>>()
@@ -354,7 +377,7 @@ impl OpenPID {
             {INDT}// Reads data with max length from the device, returning bytes read or a negative
             {INDT}// number for an error
             {INDT}int (*read)(uint8_t* data, size_t length_bits);
-            }}");
+            }};");
 
         for (name, struct_) in self.structs.iter() {
             contents.push_str(&self.emit_struct(struct_))

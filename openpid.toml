@@ -7,6 +7,7 @@ tx = [
     { type = "SizeTotal", size_bits = 8, express_as = "Bytes" },
     # maybe collapse the integer and other numeric types to be a bunch of unit variants so that it's less nested and confusing
     { type = "Metadata", segment = { name = "FrameID", bits = 8, type = { type = "Integer", signing = "Unsigned", endianness = "BigEndian"} } },
+    #{ type = "Metadata", segment = { name = "FrameID", bits = 16, type = "Raw" } },
     { type = "Payload" },
     { type = "Crc", algorithm = "Crc16XModem" },
 ]
@@ -14,6 +15,7 @@ tx = [
 rx = [ 
     { type = "SizeTotal", size_bits = 8, express_as = "Bytes" },
     { type = "Metadata", segment = { name = "FrameID", bits = 8, type = { type = "Integer", signing = "Unsigned", endianness = "BigEndian"} } },
+    #{ type = "Metadata", segment = { name = "FrameID", bits = 16, type = "Raw" } },
     { type = "Payload" },
     { type = "Crc", algorithm = "Crc16XModem" },
 ]

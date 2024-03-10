@@ -1,5 +1,24 @@
-use std::{collections::BTreeMap, error::Error};
+use std::collections::BTreeMap;
 use serde::{Serialize, Deserialize};
+
+//TODO: We need a better way to initialize the metadata values from the toml
+//this is probably in the right direction. 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum LiteralValue {
+    String(String),
+    Int(i64)
+    //TODO: boolean
+}
+
+impl ToString for LiteralValue {
+    fn to_string(&self) -> String {
+        match self {
+            LiteralValue::Int(i) => i.to_string(),
+            LiteralValue::String(s) => s.to_string()
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -251,7 +270,7 @@ pub struct Payload {
     /// Metadata that can be referenced by the PacketFormat, for example a packet ID
     /// Must be a constant inside the config file
     #[serde(flatten)]
-    pub metadata: BTreeMap<String, OneOrMany<toml::Value>>,
+    pub metadata: BTreeMap<String, OneOrMany<LiteralValue>>,
     
     /// Optional description documentation
     pub description: String
@@ -350,7 +369,7 @@ pub struct OpenPID {
     //TODO: higher level config for responses
 }
 
-pub struct Transition {
+/*pub struct Transition {
 
     //TODO: language-agnostic boolean expression
     /// Decides if this transition is taken
@@ -395,4 +414,4 @@ fn stub() -> Result<(), Box<dyn Error>> {
         transactions,
     })?);
     Ok(())
-}
+}*/
