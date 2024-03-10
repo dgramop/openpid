@@ -39,7 +39,7 @@ impl PacketSegment {
                         Signing::Unsigned => "u"
                     }),
                     SizedDataType::Raw => {
-                        "byte*".to_owned()
+                        "uint8_t*".to_owned()
                     },
                     //should be skipped, since we will hardcode the contents
                     SizedDataType::Const { .. } => {
@@ -62,7 +62,7 @@ impl PacketSegment {
                     // no need for multiple arguments since we will expect null terminated strings
                     UnsizedDataType::StringUTF8 => vec![format!("char* {name}")],
                     UnsizedDataType::Raw => {
-                        vec![format!("byte* {name}"), format!("size_t {name}_length")]
+                        vec![format!("uint8_t* {name}"), format!("size_t {name}_length")]
                     },
                     UnsizedDataType::Array { item_struct } => {
                         vec![format!("struct {item_struct}* {name}"), format!("size_t {name}_length")]
@@ -104,24 +104,24 @@ impl OpenPID {
                         SizedDataType::Integer { endianness, signing } => {
                             // TODO set endianness. If signing is one's complement, change accordingly
                             // TODO: bitshifting for non-multiples-of-8-bit-types
-                            writes.push_str(&format!("{INDT}device->write((byte*) &{name}, {bits});\n"));
+                            writes.push_str(&format!("{INDT}device->write((uint8_t*) &{name}, {bits});\n"));
                         },
                         SizedDataType::Raw => {
                             // just write the argument straight up
                             writes.push_str(&format!("{INDT}device->write({name}, {bits});\n"));
                         },
                         SizedDataType::StringUTF8 => {
-                            writes.push_str(&format!("{INDT}device->write((byte*) {name}, {bits});\n"));
+                            writes.push_str(&format!("{INDT}device->write((uint8_t*) {name}, {bits});\n"));
                         },
                         SizedDataType::FloatIEEE { endianness } => {
                             //TODO set endianness
-                            writes.push_str(&format!("{INDT}device->write((byte*) &{name}, {bits});\n"));
+                            writes.push_str(&format!("{INDT}device->write((uint8_t*) &{name}, {bits});\n"));
                         },
                         SizedDataType::Const { data } => {
                             let data_byte_length = data.len();
                             let data_array = data.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ");
                             writes.push_str(&formatdoc!("
-                            {INDT}byte {name}[{data_byte_length}] = {{ {data_array} }};
+                            {INDT}uint8_t {name}[{data_byte_length}] = {{ {data_array} }};
                             {INDT}device->write({name}, {bits});
                             "));
                         }
@@ -180,7 +180,7 @@ impl OpenPID {
                             // the same as writing raw
                             let data_array = sequence.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ");
                             writes.push_str(&formatdoc!("
-                            byte* {name}_terminator = {{ {data_array} }};
+                            uint8_t* {name}_terminator = {{ {data_array} }};
                                     device->write({name}_terminator);
                                     "))
                         },
@@ -248,7 +248,7 @@ impl OpenPID {
                     let data_array = data.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ");
                     //index used to prevent name conflicts if there are multiple consts in the header
                     writes.push_str(&formatdoc!("
-                    {INDT}byte format_const_{idx}[{data_byte_length}] = {{ {data_array} }};
+                    {INDT}uint8_t format_const_{idx}[{data_byte_length}] = {{ {data_array} }};
                     {INDT}device->write(format_const_{idx}, {bits});
                     "));
                 },
@@ -307,11 +307,11 @@ impl OpenPID {
             struct Device {{
             {INDT}// Writes data with length to the device, returning bytes written, or a negative
             {INDT}// number for an error.
-            {INDT}int (*write)(byte* data, size_t length_bits),
+            {INDT}int (*write)(uint8_t* data, size_t length_bits),
 
             {INDT}// Reads data with max length from the device, returning bytes read or a negative
             {INDT}// number for an error
-            {INDT}int (*read)(byte* data, size_t length_bits) read,
+            {INDT}int (*read)(uint8_t* data, size_t length_bits) read,
             }}");
 
         for (name, struct_) in self.structs.iter() {
