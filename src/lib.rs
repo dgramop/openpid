@@ -48,7 +48,7 @@ impl PacketSegment {
     /// arguments or return values)
     fn get_necessary_c_vars(&self, static_arrays: bool, skip_const: bool) -> Vec<String> {
         match self {
-            PacketSegment::Sized { name, bits, datatype } => {
+            PacketSegment::Sized { name, bits, datatype , description: _} => {
                 let type_name = match datatype {
                     SizedDataType::StringUTF8 => {
                         if static_arrays {
@@ -98,7 +98,7 @@ impl PacketSegment {
                 vec![ format!("{type_name} {name}") ]
 
             },
-            PacketSegment::Unsized { name, datatype, termination: _ } => {
+            PacketSegment::Unsized { name, datatype, termination: _, description: _} => {
                 match datatype {
                     // no need for multiple arguments since we will expect null terminated strings
                     UnsizedDataType::StringUTF8 => vec![format!("char* {name}")],
@@ -140,7 +140,7 @@ impl OpenPID {
 
         for segment in segments {
             match segment {
-                PacketSegment::Sized { name, bits, datatype } => {
+                PacketSegment::Sized { name, bits, datatype, description: _ } => {
                     match datatype {
                         SizedDataType::Integer { endianness, signing } => {
                             // TODO set endianness. If signing is one's complement, change accordingly
@@ -168,7 +168,7 @@ impl OpenPID {
                         }
                     }
                 },
-                PacketSegment::Unsized { name, datatype, termination } => {
+                PacketSegment::Unsized { name, datatype, termination, description: _ } => {
                     // write the actual data
                     match datatype {
                         UnsizedDataType::Raw | UnsizedDataType::Array { .. } => {
@@ -260,7 +260,7 @@ impl OpenPID {
                 PacketFormatElement::SizeOfPayload {  size_bits, express_as } => {
                     //TODO: need a write size estimator
                 },
-                PacketFormatElement::Metadata { segment } => {
+                PacketFormatElement::Metadata { segment, description: _} => {
                     //TODO: Support for dynamic types and lists that require us to populate
                     //multiple variables
                     let name = segment.get_name();
@@ -310,7 +310,7 @@ impl OpenPID {
                     });*/
 
                 },
-                PacketFormatElement::Const { data, bits } => {
+                PacketFormatElement::Const { data, bits, description} => {
                     let bits = match bits {
                         Some(bits) => *bits,
                         None => data.len()*8
@@ -363,7 +363,7 @@ impl OpenPID {
 
         for (idx, segment) in payload.segments.iter().enumerate() {
             match segment {
-                PacketSegment::Sized { name, bits, datatype } => {
+                PacketSegment::Sized { name, bits, datatype, description: _} => {
                     match datatype {
                         SizedDataType::Raw => {
                             reads.push_str("device->read((uint8_t*)&ret.{name}, {bits});\n");
@@ -393,7 +393,7 @@ impl OpenPID {
                         }
                     }
                 },
-                PacketSegment::Unsized { name, datatype, termination } => {
+                PacketSegment::Unsized { name, datatype, termination, description: _ } => {
                     match datatype {
                         UnsizedDataType::Raw => {
                             //TODO

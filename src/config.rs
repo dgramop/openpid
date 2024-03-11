@@ -54,6 +54,7 @@ pub struct ReusableStruct {
     /// Name of this struct, used in codegen and to reference this struct from other fields
     pub name: String,
     pub fields: Vec<PacketSegment>,
+    pub description: Option<String>
     //TODO: privacy?
 }
 
@@ -208,14 +209,15 @@ pub enum PacketFormatElement {
         //TODO: figure out renaming for the "type" field
         //look up the name as the key. Use the value as a literal. 
         //#[serde(flatten)]
-        segment: PacketSegment
+        segment: PacketSegment,
+        description: Option<String>
     },
 
     /// Crc/hash strategy
     Crc { algorithm: Crc },
 
     /// A fixed value/flag to include in every packet
-    Const { data: Vec<u8>, bits: Option<usize>}
+    Const { data: Vec<u8>, bits: Option<usize>, description: Option<String> }
 }
 
 type PacketFormat = Vec<PacketFormatElement>;
@@ -236,7 +238,9 @@ pub enum PacketSegment {
         bits: u32,
 
         #[serde(rename = "type")]
-        datatype: SizedDataType
+        datatype: SizedDataType,
+
+        description: Option<String>
     },
     Unsized {
         name: String,
@@ -248,7 +252,9 @@ pub enum PacketSegment {
         /// In this case, whatever the libary developer writes will be sent, and the size of what
         /// is sent will not be communicated in any way to the device, except through the overall
         /// packet/payload size, if included in the packet format
-        termination: Option<Terminator>
+        termination: Option<Terminator>,
+        
+        description: Option<String>
     },
     Struct { name: String, struct_name: String }
 }
