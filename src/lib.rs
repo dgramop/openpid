@@ -54,7 +54,8 @@ impl PacketSegment {
                         if static_arrays {
                             //TODO: panic on non-byte divisible strings, since we don't have a
                             //well-defined way of handling this. Also check for this in validator
-                            return vec![ format!("char {name}[{total}]", total = bits/8) ]
+                            // leaves in one extra space for null terminator
+                            return vec![ format!("char {name}[{total}]", total = 1 + bits/8) ]
                         }
 
                         "char*".to_owned()
@@ -381,8 +382,8 @@ impl OpenPID {
                             //TODO: process one's complement and endianness
                         },
                         SizedDataType::StringUTF8 => {
-                            reads.push_str(&format!("\n{INDT}device->read((uint8_t*)&ret.{name}, {bits})\n"));
-                            reads.push_str(&format!("{INDT}ret.{name}[{last_char}] = '\\0')\n", last_char = bits/8));
+                            reads.push_str(&format!("\n{INDT}device->read((uint8_t*)&ret.{name}, {bits});\n"));
+                            reads.push_str(&format!("{INDT}ret.{name}[{last_char}] = '\\0';\n", last_char = bits/8));
                             //TODO null-terminate the string
                             //TODO: make sure the struct string type has enough space for null
                             //terminator

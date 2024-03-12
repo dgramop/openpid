@@ -6,6 +6,8 @@ blocking public release:
 - codegen in Rust for embedded\_hal
 - docgen
 
+- teach LLM the openpid spec, and have it go generate the spec for various sensors based on their docs
+
 non-blocking:
 - package manager for downloading openpid documents + codegening
 - central repo for releasing openpid sensors
