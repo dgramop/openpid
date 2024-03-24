@@ -9,4 +9,5 @@ indoc = "2.0.4"
 mdbook = "0.4.37"
 rand = "0.8.5"
 serde = { version = "1.0.197", features = ["derive"] }
+thiserror = "1.0.58"
 toml = "0.8.10"
