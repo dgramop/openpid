@@ -146,15 +146,15 @@ impl Book {
 
         // TODO: involve the packet format so it's clear how this goes down the wire
         Ok(formatdoc! ("
-        ## {payload_name}
+        # {payload_name}
         {description}
 
-        ### Payload Segments
+        ## Payload Segments
         ![Packet Segment Description for {payload_name}]({diagram_path_relative})
         {segments}
         
 
-        ### Hard-coded Values
+        ## Hard-coded Values
         {metadatas}
 
 
@@ -235,7 +235,6 @@ pub fn document(pid: &OpenPID, path: std::path::PathBuf) -> Result<(), Box<dyn E
 
     Sendable payloads are \"sendable\" from your controller to {device_name}.
 
-    ## Sendable Payloads
     {tx_payloads}
 
     ", device_name = pid.device_info.name);
@@ -247,7 +246,6 @@ pub fn document(pid: &OpenPID, path: std::path::PathBuf) -> Result<(), Box<dyn E
 
     Recievable payloads are \"recieved\" by your controller from {device_name}.
 
-    ## Receivable Payloads
     {rx_payloads}
     ", device_name = pid.device_info.name);
     std::fs::write(book.src_path.join("payloads").join("rx.md"), rx_payloads_index)?;

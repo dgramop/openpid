@@ -4,9 +4,11 @@ extern crate rand;
 
 pub mod config;
 pub mod docgen;
+pub mod rust_embedded_hal;
 
 pub mod prelude {
     pub use crate::config::*;
+    pub use crate::Codegen;
 }
 
 use indoc::formatdoc;
@@ -22,6 +24,10 @@ impl From<std::io::Error> for Box<CodegenError> {
     fn from(value: std::io::Error) -> Self {
         Box::new(CodegenError::IOError(value))
     }
+}
+
+pub trait Codegen {
+    fn codegen(&mut self) -> Result<(), CodegenError>;
 }
 
 /// Units of indentation
@@ -117,7 +123,7 @@ impl PacketSegment {
 }
 
 impl OpenPID {
-    fn emit_struct(&self, struct_: &ReusableStruct) -> String {
+    fn c_emit_struct(&self, struct_: &ReusableStruct) -> String {
         let name = &struct_.name;
         let fields = struct_.fields.iter()
             .map(|s| s.get_necessary_c_vars(true, true))
@@ -136,7 +142,7 @@ impl OpenPID {
 
     /// Setup and calls to device->write() for each payload segment. May be used for writing
     /// metadata, or other segment data
-    fn segment_writes(&self, segments: &Vec<PacketSegment>) -> String {
+    fn c_segment_writes(&self, segments: &Vec<PacketSegment>) -> String {
         let mut writes = String::new();
 
         for segment in segments {
@@ -303,7 +309,7 @@ impl OpenPID {
                         }
                     }
 
-                    writes.push_str(&self.segment_writes(&vec![segment.clone()]));
+                    writes.push_str(&self.c_segment_writes(&vec![segment.clone()]));
                     
                     /*writes.push_str(&match segments {
                         OneOrMany::One(one) => 
@@ -326,7 +332,7 @@ impl OpenPID {
                     "));
                 },
                 PacketFormatElement::Payload => {
-                    writes.push_str(&self.segment_writes(&payload.segments))
+                    writes.push_str(&self.c_segment_writes(&payload.segments))
                 },
                 PacketFormatElement::Crc { algorithm } => (), //TODO
                 PacketFormatElement::SizeTotal { size_bits, express_as } => (),//TODO
@@ -425,7 +431,7 @@ impl OpenPID {
     }
 
     /// Generates C program code to the given destination directory
-    pub fn codegen_linux_c(&self, destination: std::path::PathBuf) -> Result<(), Box<CodegenError>> {
+    pub fn c_linux_codegen(&self, destination: std::path::PathBuf) -> Result<(), Box<CodegenError>> {
         println!("{:?}",destination.exists());
         let file = destination.join("lib.c");
         let mut contents = formatdoc!("
@@ -445,7 +451,7 @@ impl OpenPID {
             }};");
 
         for (name, struct_) in self.structs.iter() {
-            contents.push_str(&self.emit_struct(struct_))
+            contents.push_str(&self.c_emit_struct(struct_))
         }
 
         for (name, payload) in self.payloads.tx.iter() {
