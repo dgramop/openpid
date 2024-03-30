@@ -26,6 +26,10 @@ Benefits:
 
 ## Known Users
 
+## This Repo's Scope
+This repository simply describes, parses, and validates the specification, and is intended to be used as a dependency for code and documentation generators.
+Eventually, we will write a package manager for toml files and hooks into cargo to make it easy to find code/doc-gen libraries
+
 ## License: GPL
 
 ## Priorirites:
