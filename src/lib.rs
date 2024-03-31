@@ -9,6 +9,8 @@ pub mod prelude {
     pub use crate::Codegen;
 }
 
+pub use config::OpenPID;
+
 use prelude::*;
 use rand::Rng;
 
@@ -28,6 +30,10 @@ pub trait Codegen {
 }
 
 impl OpenPID {
+    pub fn from_str(a: &str) -> Result<Self, toml::de::Error> {
+        toml::from_str(a)
+    }
+
     pub fn validate(&self) {
         // All count_in_packets refer to a field that exists
         // make sure that all struct refs exist
