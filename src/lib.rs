@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate derive_more;
-extern crate rand;
 
 pub mod config;
 
@@ -9,10 +8,8 @@ pub mod prelude {
     pub use crate::Codegen;
 }
 
-pub use config::OpenPID;
-
 use prelude::*;
-use rand::Rng;
+pub use config::OpenPID;
 
 #[derive(Debug, Display)]
 pub enum CodegenError {
@@ -50,7 +47,7 @@ impl OpenPID {
 
 impl Payload {
     /// Estimates a payload's size, not including headers etc.
-    pub(crate) fn get_size() -> u32 {
+    pub fn get_size() -> u32 {
         todo!()
     }
 }
