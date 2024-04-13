@@ -220,13 +220,16 @@ pub enum PacketFormatElement {
     Const { data: Vec<u8>, bits: Option<usize>, description: Option<String> }
 }
 
+/// Each packet format specifies what part of the packet goes where, sequence
+/// numbers, length fields, and other formatting choices that describe the entire packet. The
+/// lowest level description of your interface  
 type PacketFormat = Vec<PacketFormatElement>;
 
-//TODO: multiple send/recieve formats? What if a packet is both send and recieve?
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AllPacketFormats {
-    pub tx: PacketFormat, 
-    pub rx: PacketFormat
+pub struct UARTConfig {
+    pub tx_format: PacketFormat, 
+    pub rx_format: PacketFormat,
+    //TODO: baud rate, stop bits etc.
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -330,6 +333,16 @@ pub struct DeviceInfo {
     pub description: String
 }
 
+//TODO: stub
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SPIConfig {
+}
+
+//TODO: stub
+#[derive(Serialize, Deserialize, Debug)]
+pub struct I2CConfig {
+}
+
 //TODO: for interrupt-based systems, it would be nice to automatically parse the packet data
 //type/packetID based on the struct, and maybe even set a default transaction for that case.
 //TODO: this document is currently very UART-binary/streaming-focused. Maybe we should come up with
@@ -342,16 +355,27 @@ pub struct OpenPID {
     /// Information about the device
     pub device_info: DeviceInfo,
 
-    /// Version of OpenICD to use
+    /// Version of OpenPID to use
     pub openpid_version: Option<String>,
 
     /// This document's version
     pub doc_version: Option<String>,
 
-    /// Each packet format specifies what part of the packet goes where, sequence
-    /// numbers, length fields, and other formatting choices that describe the entire packet. The
-    /// lowest level description of your interface  
-    pub packet_formats: AllPacketFormats,
+    /// If the OpenPID frames are to be used in a UART interface, must be Some, and
+    /// appropriate global configuration should also exist. It's acceptable for different supported
+    /// protocols to require additional configuration on a per-payload basis. We sugggest
+    /// generating multiple OpenPID files for each supported protocol. In the case where the
+    /// underlying payload formats are interface-invariant, multiple interfaces may be specified in
+    /// the same OpenPID document
+    pub uart: Option<UARTConfig>,
+
+    /// If the OpenPID frames are to be used in an SPI interface, contains SPI-specific
+    /// configuration
+    pub spi: Option<SPIConfig>,
+
+    /// If the OpenPID frames are to be used in an I2C interface, contains I2C-specific
+    /// configuration
+    pub i2c: Option<I2CConfig>,
 
     /// Referenced by packets, describes re-usable packet contents that may be sent or recieved
     /// to/from the device 
@@ -361,7 +385,7 @@ pub struct OpenPID {
     /// of your interface
     pub payloads: AllPayloads,
 
-    /// The highest level of your interface representable by OpenICD. If you want higher-level
+    /// The highest level of your interface representable by OpenPID. If you want higher-level
     /// SDKs, you can wrap the codegen to make fancier stuff. The codegen will give you an
     /// excellent starting point so you can focus on creating value
     pub transactions: BTreeMap<String, Transaction>
