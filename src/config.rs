@@ -3,8 +3,8 @@ use serde::{Serialize, Deserialize};
 
 //TODO: We need a better way to initialize the metadata values from the toml
 //this is probably in the right direction. 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum LiteralValue {
     String(String),
     Int(i64)
@@ -20,8 +20,8 @@ impl ToString for LiteralValue {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum OneOrMany<T> where T: Clone {
     One(T),
     Many(Vec<T>),
@@ -43,13 +43,15 @@ impl<T> OneOrMany<T> where T: Clone {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum BitsOrBytes {
     Bits,
     Bytes
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct ReusableStruct {
     /// Name of this struct, used in codegen and to reference this struct from other fields
     pub name: String,
@@ -58,7 +60,9 @@ pub struct ReusableStruct {
     //TODO: privacy?
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
+#[derive(Default)]
 pub enum Endianness {
     /// Most significant bit shows up first (at a lower memory address). If we visualize memory
     /// addresses as increasing from left to right, the most significant bit would be on the left,
@@ -72,7 +76,9 @@ pub enum Endianness {
     LittleEndian
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
+#[derive(Default)]
 pub enum Signing {
     /// Uses the first bit to flag negative numbers. 
     OnesComplement,
@@ -86,8 +92,8 @@ pub enum Signing {
 }
 
 /// Strategy for terminating an array. How should we know when to stop reading from the device?
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)] //make untagged?
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum Terminator {
     /// Reads/Writes this many elements
     CountFixed { count: u32 },
@@ -113,8 +119,8 @@ pub enum Terminator {
 // packets that are completely sized can be read from stream in a single shot
 /// Represents a particular piece of data's type. In the literal sense, describes its
 /// interpretation. The actual length of the data is specified in bits elsewhere
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum SizedDataType {
     //TODO: string and array are unsized. Maybe we should embed size into this enum
 
@@ -137,8 +143,8 @@ pub enum SizedDataType {
     Const { data: Vec<u8> }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum UnsizedDataType {
     /// Several Repetitions of a given type
     Array {
@@ -164,7 +170,8 @@ pub enum UnsizedDataType {
     }*/
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum Crc {
     // there are tons of CRC implementations. TODO: list as many as possible here, including
     // infamous CRC16 XMODEM
@@ -174,8 +181,8 @@ pub enum Crc {
 
 //in variants that are integer sizes, leave out signing flag beacuse ones&twos complement repr's are the same
 //for positive numbers
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum PacketFormatElement {
     /// The Total Size of the packet, including the payload, all headers (Crc etc.) 
     SizeTotal {
@@ -225,15 +232,16 @@ pub enum PacketFormatElement {
 /// lowest level description of your interface  
 type PacketFormat = Vec<PacketFormatElement>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct UARTConfig {
     pub tx_format: PacketFormat, 
     pub rx_format: PacketFormat,
     //TODO: baud rate, stop bits etc.
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum PacketSegment {
     Sized {
         name: String,
@@ -272,7 +280,8 @@ impl PacketSegment {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct Payload {
     /// Data inside this packet, in segments
     pub segments: Vec<PacketSegment>,
@@ -286,7 +295,8 @@ pub struct Payload {
     pub description: String
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct AllPayloads {
     /// Packet formats that are sendable
     pub tx: BTreeMap<String, Payload>,
@@ -296,8 +306,8 @@ pub struct AllPayloads {
 }
 
 /// An action that can be taken during a transaction
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub enum Action {
     /// Send a packet with the given name
     Tx { payload: String },
@@ -314,7 +324,8 @@ pub enum Action {
 
 //TODO: a way to sleep + flush buffer
 /// Represents a grouping of packets, send or receive, to be performed in order
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct Transaction {
     /// An ordered list of actions to take during a transaction, like sending or recieving a
     /// packet, or like sleeping or flushing the buffer
@@ -327,19 +338,22 @@ pub struct Transaction {
     pub description: String
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct DeviceInfo {
     pub name: String,
     pub description: String
 }
 
 //TODO: stub
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct SPIConfig {
 }
 
 //TODO: stub
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct I2CConfig {
 }
 
@@ -350,7 +364,8 @@ pub struct I2CConfig {
 //transaction, but registers are basically fixed-size packets. 
 //TODO change ids so that they have types wrapped around them
 //TODO: config for I2C, SPI, UART (default baud etc.)
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Clone))]
 pub struct OpenPID {
     /// Information about the device
     pub device_info: DeviceInfo,

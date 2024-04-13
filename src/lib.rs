@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #[macro_use]
 extern crate derive_more;
 
@@ -16,6 +18,7 @@ pub enum CodegenError {
     IOError(std::io::Error)
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for Box<CodegenError> {
     fn from(value: std::io::Error) -> Self {
         Box::new(CodegenError::IOError(value))
@@ -27,6 +30,7 @@ pub trait Codegen {
 }
 
 impl OpenPID {
+    #[cfg(feature = "serde")]
     pub fn from_str(a: &str) -> Result<Self, toml::de::Error> {
         toml::from_str(a)
     }
