@@ -156,6 +156,8 @@ pub enum UnsizedDataType {
     // TODO enum_struct in unsized, for cases where other fields are tied to the
     /// A union of structs whose actual type is decided upon by an enum.
     /// Like Rust's enum's struct variants
+    ///
+    /// Necessary for payloads where packet segments are defined by other packet segments
     EnumStruct {
         //TODO: make the key more broad
         //the value refers to a struct. The problem is returning this out or matching out of it's

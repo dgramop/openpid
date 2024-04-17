@@ -8,12 +8,28 @@ pub mod prelude {
     pub use crate::Codegen;
 }
 
+use std::fmt::Display;
+
 use prelude::*;
 pub use config::OpenPID;
 
-#[derive(Debug, Display)]
+#[derive(Debug)]
 pub enum CodegenError {
-    IOError(std::io::Error)
+    IOError(std::io::Error),
+    NoStruct { wanted_by_field: String, struct_name: String}
+}
+
+impl Display for CodegenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CodegenError::NoStruct { wanted_by_field, struct_name } =>{
+                write!(f, "Couldn't find struct named {struct_name} referenced by field {wanted_by_field}")
+            }
+            CodegenError::IOError(e) => {
+                write!(f, "Input/Output Error: {:?}", e)
+            }
+        }
+    }
 }
 
 impl From<std::io::Error> for Box<CodegenError> {
