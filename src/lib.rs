@@ -16,14 +16,14 @@ pub use config::OpenPID;
 #[derive(Debug)]
 pub enum CodegenError {
     IOError(std::io::Error),
-    NoStruct { wanted_by_field: String, struct_name: String}
+    NoStruct { wanted_by_payload: String, wanted_by_field: String, struct_name: String}
 }
 
 impl Display for CodegenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CodegenError::NoStruct { wanted_by_field, struct_name } =>{
-                write!(f, "Couldn't find struct named {struct_name} referenced by field {wanted_by_field}")
+            CodegenError::NoStruct { wanted_by_payload, wanted_by_field, struct_name } =>{
+                write!(f, "Couldn't find struct named {struct_name} referenced by {wanted_by_payload}->{wanted_by_field}")
             }
             CodegenError::IOError(e) => {
                 write!(f, "Input/Output Error: {:?}", e)
@@ -58,6 +58,9 @@ impl OpenPID {
         // make sure references to metadata exist in all packets
         // metadata cannot contain Const, since it's basically already Constant. Use PacketFormatElement::Const instead
         // metadata literals are correct and compatible in each packet
+
+        // all names should be in lower-snake case. Codegen will take care of making names into
+        // camelcase or snakecase depending on what's idiomatic for that language
     }
 }
 
